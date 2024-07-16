@@ -1,6 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using Greggs.Products.Api.DataAccess;
 using Greggs.Products.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -11,30 +11,26 @@ namespace Greggs.Products.Api.Controllers;
 [Route("[controller]")]
 public class ProductController : ControllerBase
 {
-    private static readonly string[] Products = new[]
-    {
-        "Sausage Roll", "Vegan Sausage Roll", "Steak Bake", "Yum Yum", "Pink Jammie"
-    };
-
+    private readonly IDataAccess<Product> _dataAccess;
     private readonly ILogger<ProductController> _logger;
 
-    public ProductController(ILogger<ProductController> logger)
+    public ProductController(ILogger<ProductController> logger, IDataAccess<Product> dataAccess)
     {
         _logger = logger;
+        _dataAccess = dataAccess;
     }
 
     [HttpGet]
-    public IEnumerable<Product> Get(int pageStart = 0, int pageSize = 5)
+    public IEnumerable<ProductDto> Get(int pageStart = 0, int pageSize = 5, bool inEuros = false)
     {
-        if (pageSize > Products.Length)
-            pageSize = Products.Length;
+        List<Product> products = _dataAccess.List(pageStart, pageSize, inEuros).ToList();
 
-        var rng = new Random();
-        return Enumerable.Range(1, pageSize).Select(index => new Product
+        return products
+            .Where(product => product != null) // Filter out null products
+            .Select(product => new ProductDto
             {
-                PriceInPounds = rng.Next(0, 10),
-                Name = Products[rng.Next(Products.Length)]
-            })
-            .ToArray();
+                Name = product.Name,
+                Price = inEuros ? $"€{product.Price:F2}" : $"£{product.Price:F2}"
+            });
     }
 }
